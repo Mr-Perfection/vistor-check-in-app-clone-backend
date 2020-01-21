@@ -4,7 +4,6 @@ const functions = require("firebase-functions");
 
 const cors = require("cors");
 const app = require("express")();
-const bodyParser = require("body-parser");
 
 // TODO(Stephen): Only allow CORS for whitelist sites.
 app.use(cors());
@@ -34,30 +33,42 @@ async function getEntries(req, res) {
     res.status(400).send("Please send a GET request");
     return;
   }
-  if (req.query.filters) {
-    const name = req.query.filters.name;
-    await ref
-      .orderByChild("fullName")
-      .equalTo(name)
-      .on("value", snapshot => {
-        console.log(snapshot.val());
-        res.send(snapshot.val());
-      });
-  } else {
-    await admin
-      .database()
-      .ref("/entries")
-      .on(
-        "value",
-        snapshot => {
+  const ref = await admin.database().ref("/entries");
+  if (req.query.filter) {
+    let name = req.query.filter.name;
+    let isSignedOutString = req.query.filter.isSignedOut;
+    if (name) {
+      await ref
+        .orderByChild("fullName")
+        .equalTo(name)
+        .on("value", snapshot => {
           console.log(snapshot.val());
           res.send(snapshot.val());
-        },
-        errorObject => {
-          console.log("The read failed: " + errorObject.code);
-          res.status(500).send("Someting went wrong.");
-        }
-      );
+        });
+    }
+
+    if (isSignedOutString) {
+      const isSignedOut = isSignedOutString === "true";
+      await ref
+        .orderByChild("isSignedOut")
+        .equalTo(isSignedOut)
+        .on("value", snapshot => {
+          console.log(snapshot.val());
+          res.send(snapshot.val());
+        });
+    }
+  } else {
+    await ref.on(
+      "value",
+      snapshot => {
+        console.log(snapshot.val());
+        res.send(snapshot.val());
+      },
+      errorObject => {
+        console.log("The read failed: " + errorObject.code);
+        res.status(500).send("Someting went wrong.");
+      }
+    );
   }
 }
 
